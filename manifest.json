@@ -1,0 +1,1 @@
+{"background_color":"#fff1f2","description":"Tap the happy face or the angry face!","display":"standalone","icons":[{"sizes":"192x192","src":"icon-192.png","type":"image/png"},{"sizes":"512x512","src":"icon-512.png","type":"image/png"}],"name":"Happy or Angry?","short_name":"Happy or Angry?","start_url":"index.html","theme_color":"#fff1f2"}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#fff1f2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<title>Happy or Angry?</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh; font-family: -apple-system, "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 55%, #fde68a33 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px; text-align: center; overflow-x: hidden;
+  }
+  h1 { font-size: clamp(28px, 6vw, 44px); color: #9f1239; margin: 6px 0 4px; }
+  .sub { font-size: clamp(16px, 4vw, 22px); color: #881337; margin: 0 0 18px; }
+  .row { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 760px; }
+  .face-btn {
+    flex: 1 1 280px; max-width: 340px; min-height: 300px; border: none; border-radius: 32px;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,.14);
+    transition: transform .12s ease, box-shadow .12s ease; touch-action: manipulation;
+  }
+  .face-btn:active { transform: scale(.96); }
+  .face-btn .emoji { font-size: clamp(110px, 28vw, 170px); line-height: 1; }
+  .face-btn .label { font-size: clamp(26px, 6vw, 36px); font-weight: 800; color: #fff; }
+  #happyBtn { background: linear-gradient(160deg, #fbbf24, #f59e0b); }
+  #angryBtn { background: linear-gradient(160deg, #f87171, #dc2626); }
+  .face-btn.picked { transform: scale(1.06); box-shadow: 0 0 0 6px #fff, 0 14px 40px rgba(0,0,0,.22); }
+  .face-btn.dim { opacity: .45; }
+  #result {
+    margin-top: 22px; min-height: 90px; font-size: clamp(30px, 7vw, 52px); font-weight: 900; color: #9f1239;
+  }
+  #sayit { font-size: clamp(18px, 4.5vw, 24px); color: #881337; margin-top: 4px; min-height: 30px; }
+  .stars { font-size: clamp(24px, 5vw, 32px); margin-top: 10px; min-height: 40px; }
+  .controls { margin-top: 18px; display: flex; gap: 12px; }
+  .controls button {
+    font-size: 18px; font-weight: 700; padding: 12px 22px; border-radius: 999px; border: 2px solid #fda4af;
+    background: #fff; color: #be123c; cursor: pointer;
+  }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-3deg); } 100% { transform: scale(1.06); } }
+  .pop { animation: pop .45s ease; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+  .shake { animation: shake .5s ease; }
+</style>
+</head>
+<body>
+  <h1>How do you feel?</h1>
+  <p class="sub">Tap a face!</p>
+  <div class="row">
+    <button class="face-btn" id="happyBtn" aria-label="Happy">
+      <span class="emoji">😊</span>
+      <span class="label">Happy</span>
+    </button>
+    <button class="face-btn" id="angryBtn" aria-label="Angry">
+      <span class="emoji">😠</span>
+      <span class="label">Angry</span>
+    </button>
+  </div>
+  <div id="result" aria-live="polite"></div>
+  <div id="sayit"></div>
+  <div class="stars" id="stars"></div>
+  <div class="controls">
+    <button id="againBtn">🔄 Play Again</button>
+    <button id="soundBtn">🔊 Sound On</button>
+  </div>
+
+<script>
+  let soundOn = true;
+  let count = 0;
+  const result = document.getElementById('result');
+  const sayit = document.getElementById('sayit');
+  const starsEl = document.getElementById('stars');
+  const happyBtn = document.getElementById('happyBtn');
+  const angryBtn = document.getElementById('angryBtn');
+  let audioCtx = null;
+
+  function tone(freq, start, dur, type) {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + start);
+      g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + start);
+      o.stop(audioCtx.currentTime + start + dur + 0.05);
+    } catch (e) {}
+  }
+
+  function pick(which) {
+    count++;
+    const isHappy = which === 'happy';
+    const btn = isHappy ? happyBtn : angryBtn;
+    const other = isHappy ? angryBtn : happyBtn;
+    btn.classList.remove('pop', 'shake');
+    void btn.offsetWidth;
+    btn.classList.add(isHappy ? 'pop' : 'shake');
+    btn.classList.add('picked');
+    other.classList.add('dim');
+    result.textContent = isHappy ? '😊 Happy!' : '😠 Angry!';
+    sayit.textContent = isHappy ? 'Say it: "I feel happy!"' : 'Say it: "I feel angry!"';
+    starsEl.textContent = '⭐'.repeat(Math.min(count, 10)) + (count > 10 ? ' +' + (count - 10) : '');
+    if (isHappy) { tone(523, 0, .25); tone(659, .12, .25); tone(784, .24, .4); }
+    else { tone(160, 0, .3, 'sawtooth'); tone(110, .15, .4, 'sawtooth'); }
+  }
+
+  happyBtn.addEventListener('click', () => pick('happy'));
+  angryBtn.addEventListener('click', () => pick('angry'));
+  document.getElementById('againBtn').addEventListener('click', () => {
+    count = 0;
+    result.textContent = '';
+    sayit.textContent = '';
+    starsEl.textContent = '';
+    happyBtn.classList.remove('picked', 'dim', 'pop');
+    angryBtn.classList.remove('picked', 'dim', 'shake');
+  });
+  document.getElementById('soundBtn').addEventListener('click', (e) => {
+    soundOn = !soundOn;
+    e.target.textContent = soundOn ? '🔊 Sound On' : '🔇 Sound Off';
+  });
+</script>
+</body>
+</html>
